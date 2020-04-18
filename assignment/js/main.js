@@ -89,8 +89,7 @@ function. That being said, you are welcome to make changes if it helps.
 var resetApplication = function() {
   _.each(state.markers, function(marker) { map.removeLayer(marker) })
   map.removeLayer(state.line);
-
-  state.markers = []
+  state.markers = [];
   state.line = undefined;
   $('#button-reset').hide();
 }
@@ -102,11 +101,45 @@ On draw
 
 Leaflet Draw runs every time a marker is added to the map. When this happens
 ---------------- */
+//${state.markers[0]._latlng.lng},${state.markers[0]._latlng.lat};${state.markers[1]._latlng.lng},${state.markers[1]._latlng.lat}
+
+var coordinates
+
+var getDirections = function(origin, destination) {
+  var directionsString = `https://api.mapbox.com/optimized-trips/v1/mapbox/walking/${coordinates}?source=first&destination=last&roundtrip=false&access_token=pk.eyJ1IjoiamMwMjAyMDciLCJhIjoiY2s4dWxpeTZ6MGNhcDNuanN0NTcxdzQwciJ9.BrWUModVUsdCDNnBDOkS5g&geometries=geojson`
+  console.log("directionString", directionsString)
+  var req = $.ajax(directionsString)
+  return req
+}
+
+var routes
 
 map.on('draw:created', function (e) {
   var type = e.layerType; // The type of shape
   var layer = e.layer; // The Leaflet layer for the shape
   var id = L.stamp(layer); // The unique Leaflet ID for the
+  var point = layer;
+  state["markers"].push(layer);
+  console.log(state["markers"])
+  map.addLayer(point);
+
+  if(state["markers"].length<=1){coordinates=point._latlng.lng +","+point._latlng.lat;}
+  else{coordinates = coordinates +";"+ point._latlng.lng +","+point._latlng.lat; }
+
+  if(state["markers"].length>=2){$('#button-reset').show();
+    getDirections(state).done(function(directionsResponse) {
+    console.log(directionsResponse)
+    geojson = turf.lineString(directionsResponse.trips[0].geometry.coordinates)
+    if(routes){map.removeLayer(routes)}
+    routes = L.geoJSON(geojson)
+    map.removeLayer(routes)
+    routes.addTo(map)
+    state["line"]=routes;
+  })
+}
+
+
+
 
   console.log('Do something with the layer you just created:', layer, layer._latlng);
 });
